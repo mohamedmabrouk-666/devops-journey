@@ -20,11 +20,11 @@ jobs:
 
       - name: Check required files
         run: |
-          test -f index.html
-          test -f style.css
-          test -f script.js
-          test -f health.json
-          test -f Dockerfile
+          test -f app/index.html
+          test -f app/style.css
+          test -f app/script.js
+          test -f app/health.json
+          test -f app/Dockerfile
 
       - name: Validate health JSON
         run: python3 -m json.tool health.json > /dev/null
