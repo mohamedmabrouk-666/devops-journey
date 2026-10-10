@@ -27,7 +27,7 @@ jobs:
           test -f app/Dockerfile
 
       - name: Validate health JSON
-        run: python3 -m json.tool health.json > /dev/null
+        run: python3 -m json.tool app/health.json > /dev/null
 
       - name: Build Docker image
         run: docker build -t devops-journey:ci .
