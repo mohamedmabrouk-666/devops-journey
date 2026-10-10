@@ -1,41 +1,42 @@
 
-# name: DevOps Journey CI
+name: DevOps Journey CI
 
-# on:
-#   push:
-#     branches: [main]
-#   pull_request:
-#     branches: [main]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
-# permissions:
-#   contents: read
+permissions:
+  contents: read
 
-# jobs:
-#   build-and-test:
-#     runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
 
-#       - name: Check required files
-#         run: |
-#           test -f app/index.html
-#           test -f app/style.css
-#           test -f app/script.js
-#           test -f app/health.json
-#           test -f app/Dockerfile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-#       - name: Validate health JSON
-#         run: python3 -m json.tool app/health.json > /dev/null
+      - name: Check required files
+        run: |
+          test -f app/index.html
+          test -f app/style.css
+          test -f app/script.js
+          test -f app/health.json
+          test -f app/Dockerfile
 
-#       - name: Build Docker image
-#         run: docker build -t devops-journey:ci ./app
+      - name: Validate health JSON
+        run: python3 -m json.tool app/health.json > /dev/null
 
-#       - name: Scan image with Trivy
-#         uses: aquasecurity/trivy-action@v0.36.0
-#         with:
-#           image-ref: devops-journey:ci
-#           format: table
-#           exit-code: '0'
-#           severity: HIGH,CRITICAL
+      - name: Build Docker image
+        run: docker build -t devops-journey:ci ./app
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: devops-journey:ci
+          format: table
+          exit-code: '0'
+          severity: HIGH,CRITICAL
