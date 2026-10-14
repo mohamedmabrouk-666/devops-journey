@@ -42,7 +42,7 @@ jobs:
           docker logs devops-journey-test
           exit 1
 
-      # Step: Stop test container
+      # Step: Stop test  container
       - name: Cleanup test container
         if: always()
         run: docker rm -f devops-journey-test || true  
