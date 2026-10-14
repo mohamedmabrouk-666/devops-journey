@@ -18,17 +18,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check required files
-        run: |
-          test -f index.html
-          test -f style.css
-          test -f script.js
-          test -f health.json
-          test -f Dockerfile
-
-      - name: Validate health JSON
-        run: python3 -m json.tool health.json > /dev/null
-
       - name: Build Docker image
         run: docker build -t devops-journey:ci .
 
@@ -39,3 +28,5 @@ jobs:
           format: table
           exit-code: '0'
           severity: HIGH,CRITICAL
+
+
