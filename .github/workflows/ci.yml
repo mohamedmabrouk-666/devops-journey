@@ -70,7 +70,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::792068516092:role/my_GitHubActions-with-ECR
+          role-to-assume: arn:aws:iam::123456789012:role/my_GitHubActions-with-ECR
           aws-region: ${{ env.AWS_REGION }}
 
       # Authenticate Docker with Amazon ECR
