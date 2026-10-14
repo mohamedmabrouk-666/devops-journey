@@ -1,36 +1,42 @@
-
-name: DevOps Journey CI
+name: DevOps Journey CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:  
+  workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: devops-journey-cluster
+  ECS_SERVICE: devops-journey-service
+  TASK_DEFINITION_FAMILY: devops-journey-task
+  CONTAINER_NAME: devops-journey-container
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-    # to download the Repo into our Runner
+      # Download the repository into the runner
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Build Docker image
       - name: Build Docker image
         run: docker build -t devops-journey:ci ./app
 
-      # Step: Run the application container
+      # Run the application container
       - name: Run application container
         run: |
           docker run -d --name devops-journey-test -p 8080:80 devops-journey:ci
-  
 
-      # Step: Verify application HTTP response
+      # Verify application HTTP response
       - name: Smoke test
         run: |
           for i in {1..10}; do
@@ -45,11 +51,12 @@ jobs:
           docker logs devops-journey-test
           exit 1
 
-      # Step: Stop test  container
+      # Stop the test container
       - name: Cleanup test container
         if: always()
-        run: docker rm -f devops-journey-test || true  
+        run: docker rm -f devops-journey-test || true
 
+      # Scan image with Trivy
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -57,15 +64,14 @@ jobs:
           format: table
           exit-code: '0'
           severity: HIGH,CRITICAL
-      
 
-       # Configure temporary AWS credentials through OIDC
+      # Configure temporary AWS credentials through OIDC
       - name: Configure AWS credentials
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::792068516092:role/my_GitHubActions-with-ECR 
-          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::792068516092:role/my_GitHubActions-with-ECR
+          aws-region: ${{ env.AWS_REGION }}
 
       # Authenticate Docker with Amazon ECR
       - name: Login to Amazon ECR
@@ -77,8 +83,46 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker tag devops-journey:ci \
-            792068516092.dkr.ecr.us-east-1.amazonaws.com/my-registry:latest
+            792068516092.dkr.ecr.us-east-1.amazonaws.com/my-registry:${GITHUB_SHA}
 
           docker push \
-            792068516092.dkr.ecr.us-east-1.amazonaws.com/my-registry:latest
+            792068516092.dkr.ecr.us-east-1.amazonaws.com/my-registry:${GITHUB_SHA}
 
+      # Download the current ECS task definition
+      - name: Download task definition
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$TASK_DEFINITION_FAMILY" \
+            --query taskDefinition \
+            --output json \
+          | jq 'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )' > task-definition.json
+
+      # Update the container image in the task definition
+      - name: Update task definition image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: devops-journey-container
+          image: 792068516092.dkr.ecr.us-east-1.amazonaws.com/my-registry:${{ github.sha }}
+
+      # Deploy the new task definition to ECS
+      - name: Deploy to Amazon ECS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
